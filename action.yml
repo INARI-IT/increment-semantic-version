@@ -1,118 +1,28 @@
----
-name: 'Version Increment'
-description: Inspects the git tags to determine the current normal version, and returns the next version number
-
+name: Increment Semantic Version
+description: Bump a given semantic version by a release type ( major | minor | patch ) and add a possible postfix ( alpha | beta | rc | stable )
+author: Christian Dräger
 branding:
-  icon: plus
-  color: purple
-
+  icon: 'tag'
+  color: 'purple'
 inputs:
-  scheme:
-    description: |
-      Versioning scheme - semver, calver or conventional_commits (defaults to semver).
-
-      `conventional_commits` Will parse the last commit message (e.g. the merge commit) to
-      determine the increment type, and supports the following increment types by keyword:
-      - patch (build, chore, ci, docs, fix, perf, refactor, revert, style, test)
-      - minor (feat)
-      - major (any of the above keywords followed by a '!' character, or 'BREAKING CHANGE:' in commit body)
-    required: false
-    default: 'semver'
-  pep440:
-    description: 'PEP440 compatibility mode - shifts the pre-release version information into build metadata instead'
-    required: false
-    default: false
-  increment:
-    description: |
-      Field to increment - major, minor, or, patch (defaults to patch)
-
-      If using the `conventional_commits` scheme, this is the default increment if the parsing of the merge commit fails to
-      find conventional commits information
-
-      Not applicable to `calver` scheme
-    required: false
-    default: 'patch'
-  release_branch:
-    description: 'Specify a non-default branch to use for the release tag (the one without -pre)'
-    required: false
-    type: string
-  use_api:
-    description: 'Use the GitHub API to discover current tags, which avoids the need for a git checkout, but requires `curl` and `jq`'
-    required: false
-    default: false
-  tag_prefix:
-    description: |
-      Prefix the tag with a string (defaults to empty string).  e.g. if set to `@org/product/` the action will filter by this prefix and return `@org/product/1.2.3` in `prefixed-version` output
-    required: false
-    default: ''
-  pre_release_branch_suffix:
-    description: |
-      Suffix to use if action target non-release branch. default to 'pre'.
-    required: false
-    default: 'pre'
-
-outputs:
   current-version:
-    description: 'Current normal version detected'
-    value: ${{ steps.version-lookup.outputs.CURRENT_VERSION }}
-  current-v-version:
-    description: 'Current normal version detected, prefixed with a `v` character'
-    value: ${{ steps.version-lookup.outputs.CURRENT_V_VERSION }}
-  version:
-    description: 'Incremented version calculated'
-    value: ${{ steps.version-increment.outputs.VERSION }}
-  v-version:
-    description: 'Incremented version calculated, prefixed with a `v` charatcter'
-    value: ${{ steps.version-increment.outputs.V_VERSION }}
-  major-version:
-    description: 'Major number of the incremented version'
-    value: ${{ steps.version-increment.outputs.MAJOR_VERSION }}
-  minor-version:
-    description: 'Minor number of the incremented version'
-    value: ${{ steps.version-increment.outputs.MINOR_VERSION }}
-  patch-version:
-    description: 'Patch number of the incremented version'
-    value: ${{ steps.version-increment.outputs.PATCH_VERSION }}
-  pre-release-label:
-    description: 'Pre-release label of the incremented version'
-    value: ${{ steps.version-increment.outputs.PRE_RELEASE_LABEL }}
-  major-v-version:
-    description: 'Major number of the incremented version, prefixed with a `v` charatcter'
-    value: ${{ steps.version-increment.outputs.MAJOR_V_VERSION }}
-  minor-v-version:
-    description: 'Minor number of the incremented version, prefixed with a `v` charatcter'
-    value: ${{ steps.version-increment.outputs.MINOR_V_VERSION }}
-  patch-v-version:
-    description: 'Patch number of the incremented version, prefixed with a `v` charatcter'
-    value: ${{ steps.version-increment.outputs.PATCH_V_VERSION }}
-  prefixed-version:
-    description: 'Incremented version calculated, including a `tag_prefix` if specified'
-    value: ${{ inputs.tag_prefix}}${{ steps.version-increment.outputs.VERSION }}
-  prefixed-v-version:
-    description: 'Incremented version calculated, prefixed with a `v` charatcter, and also including a `tag_prefix` if specified'
-    value: ${{ inputs.tag_prefix}}${{ steps.version-increment.outputs.V_VERSION }}
-
+    description: 'The current semantic version you want to increment'
+    required: true
+  version-fragment:
+    description: 'The versions fragment you want to increment. possible options are [ major | feature| minor | bug | patch | hotfix | alpha | beta | rc | stable ]'
+    required: true
+outputs:
+  next-version:
+    description: 'The incremented version'
+    value: ${{ steps.bump-version.outputs.next-version }}
 runs:
   using: "composite"
   steps:
-    - id: version-lookup
-      run: "${GITHUB_ACTION_PATH}/version-lookup.sh"
-      shell: bash
+    - name: Run entrypoint.sh
+      id: bump-version
       env:
-        github_token: ${{ github.token }}
-        scheme: ${{ inputs.scheme }}
-        use_api: ${{ inputs.use_api }}
-        tag_prefix: ${{ inputs.tag_prefix }}
-
-    - id: version-increment
-      run: "${GITHUB_ACTION_PATH}/version-increment.sh"
+        CURRENT_VERSION: "${{ inputs.current-version }}"
+        VERSION_FRAGMENT: "${{ inputs.version-fragment }}"
       shell: bash
-      env:
-        current_version: ${{ steps.version-lookup.outputs.CURRENT_VERSION }}
-        increment: ${{ inputs.increment }}
-        github_token: ${{ github.token }}
-        pep440: ${{ inputs.pep440 }}
-        scheme: ${{ inputs.scheme }}
-        release_branch: ${{ inputs.release_branch }}
-        use_api: ${{ inputs.use_api }}
-        pre_release_branch_suffix: ${{ inputs.pre_release_branch_suffix }}
+      run: |
+        "$GITHUB_ACTION_PATH"/entrypoint.sh "${CURRENT_VERSION}" "${VERSION_FRAGMENT}"
